@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ระบบรับส่งสิ่งส่งตรวจ (Messenger)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f3f4f6;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* สำหรับหน้าจอคอม ให้แสดงผลคล้ายมือถือตรงกลางจอ */
+        .mobile-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background-color: #ffffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .signature-canvas {
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.5rem;
+            background-color: #f8fafc;
+            touch-action: none; /* ป้องกันการเลื่อนหน้าจอตอนเซ็น */
+        }
+    </style>
+</head>
+
+<body>
+<div class="mobile-container">
+    <!-- Auth View (Login & Register) -->
+    <div id="auth-view" class="flex-1 flex flex-col justify-center px-6 bg-white z-20">
+        <!-- Login Section -->
+        <div id="login-section" class="w-full mx-auto">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-600 text-white rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🏃</div>
+                <h1 class="text-3xl font-bold text-gray-800">MedMessenger</h1>
+                <p class="text-gray-500 mt-2 text-sm">ระบบรับส่งสิ่งส่งตรวจทางการแพทย์</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ / รหัสพนักงาน</label>
+                    <input type="text" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="ระบุเบอร์โทรหรือรหัส">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                    <input type="password" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="ระบุรหัสผ่าน">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold text-lg py-3.5 rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all mt-4 flex items-center justify-center">
+                    เข้าสู่ระบบ
+                </button>
+            </form>
+            <div class="text-center mt-6">
+                <p class="text-gray-600 text-sm">ยังไม่มีบัญชีผู้ใช้งาน? <button onclick="toggleAuth('register')" type="button" class="text-blue-600 font-bold hover:underline ml-1">ลงทะเบียนที่นี่</button></p>
+            </div>
+        </div>
+
+        <!-- Register Section -->
+        <div id="register-section" class="w-full mx-auto hidden">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">ลงทะเบียนผู้ส่ง</h2>
+                <p class="text-gray-500 text-sm mt-1">กรอกข้อมูลเพื่อสร้างบัญชีใหม่</p>
+            </div>
+            <form onsubmit="handleRegister(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อ-นามสกุล</label>
+                    <input type="text" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="เช่น นายสมชาย ส่งดี">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
+                    <input type="tel" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="08X-XXX-XXXX">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                    <input type="password" required class="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="ตั้งรหัสผ่าน 6 ตัวขึ้นไป">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white font-bold text-lg py-3.5 rounded-xl shadow-lg hover:bg-green-700 active:scale-95 transition-all mt-4">
+                    ยืนยันการลงทะเบียน
+                </button>
+            </form>
+            <div class="text-center mt-6">
+                <button onclick="toggleAuth('login')" type="button" class="text-gray-500 font-medium hover:text-gray-800 flex items-center justify-center mx-auto text-sm">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    กลับไปหน้าเข้าสู่ระบบ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App View (Hidden initially) -->
+    <div id="app-view" class="hidden flex-1 flex-col w-full bg-gray-50 h-screen">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4 sticky top-0 z-10 shadow-md rounded-b-2xl">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-xl font-bold">รหัสงาน: #MED-8492</h2>
+                    <p id="user-status" class="text-blue-100 text-sm">สถานะ: พร้อมรับงาน</p>
+                </div>
+                <div class="bg-white/20 p-2 rounded-full">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- Action Area (Changes based on state) -->
+        <div id="action-area" class="p-4 space-y-4 flex-1 overflow-y-auto pb-20">
+            
+            <div id="status-banner" class="text-center py-2 px-4 rounded-lg font-semibold text-sm bg-yellow-100 text-yellow-700 border border-yellow-200">
+                ⚠️ มีงานใหม่เข้ามา
+            </div>
+
+            <!-- Job Info Card -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b flex items-center">
+                    <svg class="w-5 h-5 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <span class="font-bold text-gray-700">ข้อมูลสิ่งส่งตรวจ</span>
+                </div>
+                <div class="p-4 space-y-3 text-sm">
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">ชื่อผู้ป่วย:</span>
+                        <span class="font-semibold text-gray-800">นาย สมมติ ทดสอบ</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">รับจาก:</span>
+                        <span class="font-semibold text-blue-600">ตึกผู้ป่วยใน ชั้น 4</span>
+                    </div>
+                    <div class="flex justify-between border-b border-gray-100 pb-2">
+                        <span class="text-gray-500">ส่งไปที่:</span>
+                        <span class="font-semibold text-orange-600">ห้อง Lab ชั้น 2</span>
+                    </div>
+                    <div class="pt-1">
+                        <span class="text-gray-500 block mb-2">รายการ:</span>
+                        <ul class="space-y-2">
+                            <li class="flex items-center justify-between bg-purple-50 p-2 rounded-lg border border-purple-100">
+                                <span class="flex items-center text-purple-700"><span class="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>EDTA</span>
+                                <span class="font-bold text-purple-700">1 หลอด</span>
+                            </li>
+                            <li class="flex items-center justify-between bg-green-50 p-2 rounded-lg border border-green-100">
+                                <span class="flex items-center text-green-700"><span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>Heparin</span>
+                                <span class="font-bold text-green-700">1 หลอด</span>
+                            </li>
+                            <li class="flex items-center justify-between bg-yellow-50 p-2 rounded-lg border border-yellow-100">
+                                <span class="flex items-center text-yellow-700"><span class="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>Urine</span>
+                                <span class="font-bold text-yellow-700">1 กระปุก</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- SECTION: New Job -->
+            <div id="section-new" class="hidden">
+                <button onclick="acceptJob()" class="w-full bg-blue-600 active:bg-blue-700 text-white font-bold text-lg py-4 rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center justify-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    รับงานนี้
+                </button>
+            </div>
+
+            <!-- SECTION: Pickup (ต้นทาง) -->
+            <div id="section-pickup" class="hidden bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-3 text-center border-b pb-2">ขั้นตอนที่ 1: รับของจากต้นทาง</h3>
+                
+                <div class="space-y-3">
+                    <label class="block relative">
+                        <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(this, 'pickup')">
+                        <div id="btn-photo-pickup" class="w-full border-2 border-blue-500 text-blue-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-blue-50 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span id="text-photo-pickup">1. ถ่ายรูปสิ่งส่งตรวจ</span>
+                        </div>
+                    </label>
+
+                    <button onclick="openSignatureModal('pickup')" class="w-full border-2 border-blue-500 text-blue-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-blue-50 transition" id="btn-sign-pickup">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        <span id="text-sign-pickup">2. เซ็นชื่อผู้มอบ</span>
+                    </button>
+                    
+                    <button onclick="confirmPickup()" id="btn-confirm-pickup" disabled class="w-full bg-gray-300 text-gray-500 font-bold py-4 rounded-xl shadow mt-4 transition-colors">
+                        ยืนยันการรับของ
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECTION: Delivery (ปลายทาง) -->
+            <div id="section-delivery" class="hidden bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-800 mb-3 text-center border-b pb-2">ขั้นตอนที่ 2: ส่งของให้ปลายทาง</h3>
+                
+                <div class="space-y-3">
+                    <label class="block relative">
+                        <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoUpload(this, 'delivery')">
+                        <div id="btn-photo-delivery" class="w-full border-2 border-orange-500 text-orange-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-orange-50 transition">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            <span id="text-photo-delivery">1. ถ่ายรูปการส่งมอบ</span>
+                        </div>
+                    </label>
+
+                    <button onclick="openSignatureModal('delivery')" class="w-full border-2 border-orange-500 text-orange-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-orange-50 transition" id="btn-sign-delivery">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        <span id="text-sign-delivery">2. เซ็นชื่อเจ้าหน้าที่ Lab ผู้รับ</span>
+                    </button>
+                    
+                    <button onclick="completeJob()" id="btn-complete-job" disabled class="w-full bg-gray-300 text-gray-500 font-bold py-4 rounded-xl shadow mt-4 transition-colors">
+                        จบงาน / ส่งของสำเร็จ
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECTION: Completed -->
+            <div id="section-completed" class="hidden text-center bg-white p-8 rounded-xl shadow-sm border border-green-100">
+                <div class="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <h3 class="text-xl font-bold text-green-600 mb-2">ส่งสิ่งส่งตรวจสำเร็จ!</h3>
+                <p class="text-gray-500 text-sm mb-6">ข้อมูลถูกบันทึกเข้าระบบเรียบร้อยแล้ว</p>
+                <button onclick="resetApp()" class="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl active:bg-gray-200">
+                    กลับไปหน้าหลัก
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Bottom Navigation (Visual only for realism) -->
+        <nav class="bg-white border-t flex justify-around p-3 pb-6 sticky bottom-0 mt-auto shadow-[0_-5px_15px_-10px_rgba(0,0,0,0.1)]">
+            <div class="flex flex-col items-center text-blue-600">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                <span class="text-[10px] font-semibold">งานปัจจุบัน</span>
+            </div>
+            <div class="flex flex-col items-center text-gray-400">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span class="text-[10px] font-semibold">ประวัติ</span>
+            </div>
+            <div class="flex flex-col items-center text-gray-400">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <span class="text-[10px] font-semibold">โปรไฟล์</span>
+            </div>
+        </nav>
+    </div>
+</div>
+
+<!-- Signature Modal Overlay -->
+<div id="signature-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-4 flex flex-col shadow-2xl">
+        <h3 class="text-lg font-bold text-gray-800 mb-2" id="signature-title">เซ็นชื่อยืนยัน</h3>
+        <p class="text-xs text-gray-500 mb-3">กรุณาใช้นิ้วเซ็นในกรอบด้านล่าง</p>
+        
+        <canvas id="sig-canvas" class="signature-canvas w-full h-48 mb-4"></canvas>
+        
+        <div class="flex justify-between space-x-3 mt-auto">
+            <button onclick="clearSignature()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold active:bg-gray-200">
+                ล้างใหม่
+            </button>
+            <button onclick="saveSignature()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold active:bg-blue-700">
+                บันทึกลายเซ็น
+            </button>
+        </div>
+        <button onclick="closeSignatureModal()" class="mt-3 text-gray-400 text-sm py-2 underline">
+            ยกเลิก
+        </button>
+    </div>
+</div>
+
+<!-- Custom Alert Modal (แทนที่ alert แบบเก่า) -->
+<div id="custom-alert" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-xs w-full p-6 text-center transform transition-all">
+        <div id="alert-icon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+            <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+        <h3 id="alert-title" class="text-lg leading-6 font-medium text-gray-900 mb-2">สำเร็จ</h3>
+        <div class="mt-2">
+            <p id="alert-message" class="text-sm text-gray-500">ดำเนินการเรียบร้อย</p>
+        </div>
+        <div class="mt-5">
+            <button type="button" onclick="closeAlert()" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:text-sm">
+                ตกลง
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State Management
+    // สถานะ: 'NEW' -> 'ACCEPTED' (รอดำเนินการต้นทาง) -> 'IN_TRANSIT' (รอดำเนินการปลายทาง) -> 'COMPLETED'
+    let currentState = 'NEW';
+    let currentSignatureTarget = ''; // 'pickup' or 'delivery'
+    
+    // สถานะความคืบหน้าของงานย่อย
+    const taskStatus = {
+        pickupPhoto: false,
+        pickupSign: false,
+        deliveryPhoto: false,
+        deliverySign: false
+    };
+
+    // DOM Elements
+    const statusBanner = document.getElementById('status-banner');
+    const sectionNew = document.getElementById('section-new');
+    const sectionPickup = document.getElementById('section-pickup');
+    const sectionDelivery = document.getElementById('section-delivery');
+    const sectionCompleted = document.getElementById('section-completed');
+    const userStatus = document.getElementById('user-status');
+
+    // Canvas Setup
+    const canvas = document.getElementById('sig-canvas');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+
+    // Initialization
+    function init() {
+        renderState();
+        // setupCanvas(); ถูกย้ายไปตอน Login สำเร็จเพื่อป้องกันบัคขนาด Canvas (เนื่องจากตอนซ่อนหน้าจะไม่สามารถคำนวณความกว้างได้)
+    }
+
+    // --- Authentication Functions ---
+    function toggleAuth(view) {
+        if(view === 'register') {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('register-section').classList.remove('hidden');
+        } else {
+            document.getElementById('register-section').classList.add('hidden');
+            document.getElementById('login-section').classList.remove('hidden');
+        }
+    }
+
+    function handleLogin(e) {
+        e.preventDefault();
+        
+        // ซ่อนหน้า Auth
+        document.getElementById('auth-view').classList.add('hidden');
+        // แสดงหน้า App
+        document.getElementById('app-view').classList.remove('hidden');
+        document.getElementById('app-view').classList.add('flex');
+        
+        // ตั้งค่า Canvas หลังจาก DOM ของหน้า App แสดงผลแล้ว
+        setTimeout(setupCanvas, 100);
+        
+        // รีเซ็ตฟอร์ม
+        e.target.reset();
+    }
+
+    function handleRegister(e) {
+        e.preventDefault();
+        // จำลองการลงทะเบียนสำเร็จ
+        showAlert('ลงทะเบียนสำเร็จ', 'บัญชีของคุณถูกสร้างเรียบร้อยแล้ว กรุณาเข้าสู่ระบบ', 'success');
+        toggleAuth('login');
+        e.target.reset(); // ล้างฟอร์ม
+    }
+
+    // State Machine Renderer
+    function renderState() {
+        // Hide all sections first
+        sectionNew.classList.add('hidden');
+        sectionPickup.classList.add('hidden');
+        sectionDelivery.classList.add('hidden');
+        sectionCompleted.classList.add('hidden');
+
+        if (currentState === 'NEW') {
+            sectionNew.classList.remove('hidden');
+            statusBanner.className = 'mb-4 text-center py-2 px-4 rounded-lg font-semibold text-sm bg-yellow-100 text-yellow-700 border border-yellow-200';
+            statusBanner.innerText = '⚠️ มีงานใหม่เข้ามารอคุณรับ';
+            userStatus.innerText = 'สถานะ: พร้อมรับงาน';
+        } 
+        else if (currentState === 'ACCEPTED') {
+            sectionPickup.classList.remove('hidden');
+            statusBanner.className = 'mb-4 text-center py-2 px-4 rounded-lg font-semibold text-sm bg-blue-100 text-blue-700 border border-blue-200';
+            statusBanner.innerText = '🚶 กำลังเดินทางไปรับสิ่งส่งตรวจ';
+            userStatus.innerText = 'สถานะ: กำลังปฏิบัติงาน';
+            checkPickupCompletion();
+        } 
+        else if (currentState === 'IN_TRANSIT') {
+            sectionDelivery.classList.remove('hidden');
+            statusBanner.className = 'mb-4 text-center py-2 px-4 rounded-lg font-semibold text-sm bg-orange-100 text-orange-700 border border-orange-200';
+            statusBanner.innerText = '🏃 กำลังนำส่งไปที่ Lab';
+            userStatus.innerText = 'สถานะ: กำลังนำส่ง';
+            checkDeliveryCompletion();
+        }
+        else if (currentState === 'COMPLETED') {
+            sectionCompleted.classList.remove('hidden');
+            statusBanner.className = 'mb-4 text-center py-2 px-4 rounded-lg font-semibold text-sm bg-green-100 text-green-700 border border-green-200';
+            statusBanner.innerText = '✅ งานเสร็จสิ้นเรียบร้อย';
+            userStatus.innerText = 'สถานะ: ว่าง';
+        }
+    }
+
+    // Action Functions
+    function acceptJob() {
+        currentState = 'ACCEPTED';
+        renderState();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function confirmPickup() {
+        if(taskStatus.pickupPhoto && taskStatus.pickupSign) {
+            currentState = 'IN_TRANSIT';
+            renderState();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            showAlert('รับของสำเร็จ', 'กำลังนำส่งไปที่ห้อง Lab', 'success');
+        }
+    }
+
+    function completeJob() {
+        if(taskStatus.deliveryPhoto && taskStatus.deliverySign) {
+            currentState = 'COMPLETED';
+            renderState();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    function resetApp() {
+        currentState = 'NEW';
+        taskStatus.pickupPhoto = false;
+        taskStatus.pickupSign = false;
+        taskStatus.deliveryPhoto = false;
+        taskStatus.deliverySign = false;
+        
+        // Reset UI Buttons
+        resetButtonUI('pickup');
+        resetButtonUI('delivery');
+        
+        renderState();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Photo Handling (Simulated with file input)
+    function handlePhotoUpload(input, type) {
+        if(input.files && input.files[0]) {
+            // ถ่ายรูปหรือเลือกรูปสำเร็จ
+            if(type === 'pickup') {
+                taskStatus.pickupPhoto = true;
+                updateButtonSuccess('btn-photo-pickup', 'text-photo-pickup', 'ถ่ายรูประหว่างรับแล้ว');
+                checkPickupCompletion();
+            } else if(type === 'delivery') {
+                taskStatus.deliveryPhoto = true;
+                updateButtonSuccess('btn-photo-delivery', 'text-photo-delivery', 'ถ่ายรูประหว่างส่งแล้ว');
+                checkDeliveryCompletion();
+            }
+        }
+    }
+
+    function updateButtonSuccess(btnId, textId, newText) {
+        const btn = document.getElementById(btnId);
+        const txt = document.getElementById(textId);
+        
+        // เปลี่ยนสีเป็นเขียว
+        btn.classList.remove('border-blue-500', 'text-blue-600', 'border-orange-500', 'text-orange-600');
+        btn.classList.add('bg-green-50', 'border-green-500', 'text-green-600');
+        
+        // เปลี่ยนไอคอนเป็นติ๊กถูก
+        btn.innerHTML = `<svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span id="${textId}">${newText}</span>`;
+    }
+
+    function resetButtonUI(type) {
+        // คืนค่าปุ่มต้นทาง
+        if(type === 'pickup') {
+            const btnP = document.getElementById('btn-photo-pickup');
+            btnP.className = 'w-full border-2 border-blue-500 text-blue-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-blue-50 transition';
+            btnP.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span id="text-photo-pickup">1. ถ่ายรูปสิ่งส่งตรวจ</span>`;
+            
+            const btnS = document.getElementById('btn-sign-pickup');
+            btnS.className = 'w-full border-2 border-blue-500 text-blue-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-blue-50 transition';
+            btnS.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg><span id="text-sign-pickup">2. เซ็นชื่อพยาบาลผู้มอบ</span>`;
+        }
+        
+        // คืนค่าปุ่มปลายทาง
+        if(type === 'delivery') {
+            const btnPd = document.getElementById('btn-photo-delivery');
+            btnPd.className = 'w-full border-2 border-orange-500 text-orange-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-orange-50 transition';
+            btnPd.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg><span id="text-photo-delivery">1. ถ่ายรูปการส่งมอบ</span>`;
+            
+            const btnSd = document.getElementById('btn-sign-delivery');
+            btnSd.className = 'w-full border-2 border-orange-500 text-orange-600 font-semibold py-3 rounded-xl flex items-center justify-center active:bg-orange-50 transition';
+            btnSd.innerHTML = `<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg><span id="text-sign-delivery">2. เซ็นชื่อเจ้าหน้าที่ Lab ผู้รับ</span>`;
+        }
+    }
+
+    function checkPickupCompletion() {
+        const btnConfirm = document.getElementById('btn-confirm-pickup');
+        if(taskStatus.pickupPhoto && taskStatus.pickupSign) {
+            btnConfirm.disabled = false;
+            btnConfirm.classList.remove('bg-gray-300', 'text-gray-500');
+            btnConfirm.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+        } else {
+            btnConfirm.disabled = true;
+            btnConfirm.classList.add('bg-gray-300', 'text-gray-500');
+            btnConfirm.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+        }
+    }
+
+    function checkDeliveryCompletion() {
+        const btnComplete = document.getElementById('btn-complete-job');
+        if(taskStatus.deliveryPhoto && taskStatus.deliverySign) {
+            btnComplete.disabled = false;
+            btnComplete.classList.remove('bg-gray-300', 'text-gray-500');
+            btnComplete.classList.add('bg-green-600', 'text-white', 'hover:bg-green-700');
+        } else {
+            btnComplete.disabled = true;
+            btnComplete.classList.add('bg-gray-300', 'text-gray-500');
+            btnComplete.classList.remove('bg-green-600', 'text-white', 'hover:bg-green-700');
+        }
+    }
+
+    // Signature Canvas Logic
+    function setupCanvas() {
+        // กำหนดขนาดจริงของ Canvas ให้ตรงกับ CSS
+        function resizeCanvas() {
+            // ใช้ขนาดของ container
+            const rect = canvas.parentElement.getBoundingClientRect();
+            // ให้ความกว้างเต็ม ความสูงตามที่กำหนด
+            canvas.width = rect.width - 32; // หัก padding
+            canvas.height = 192; // h-48 = 192px
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        // หน่วงเวลาเล็กน้อยเพื่อให้ DOM render เสร็จก่อนดึงขนาด
+        setTimeout(resizeCanvas, 100);
+
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#1e3a8a'; // สีน้ำเงินเข้ม
+
+        // Mouse Events
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseout', endPosition);
+
+        // Touch Events สำหรับมือถือ
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // ป้องกันการ scroll หน้าจอ
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousedown", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent("mouseup", {});
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousemove", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        }, { passive: false });
+    }
+
+    function startPosition(e) {
+        isDrawing = true;
+        draw(e);
+    }
+
+    function endPosition() {
+        isDrawing = false;
+        ctx.beginPath(); // เริ่มเส้นใหม่ครั้งต่อไป
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
+
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    }
+
+    function openSignatureModal(target) {
+        currentSignatureTarget = target;
+        const title = document.getElementById('signature-title');
+        title.innerText = target === 'pickup' ? 'ลายเซ็นพยาบาลผู้มอบ' : 'ลายเซ็นเจ้าหน้าที่ Lab';
+        
+        document.getElementById('signature-modal').classList.remove('hidden');
+        clearSignature(); // ล้างของเก่าทุกครั้งที่เปิด
+        
+        // แก้ไขบัค Canvas เบลอตอนเปิด Modal ครั้งแรก
+        setTimeout(() => {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width - 32;
+            canvas.height = 192;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#1e3a8a';
+        }, 50);
+    }
+
+    function closeSignatureModal() {
+        document.getElementById('signature-modal').classList.add('hidden');
+    }
+
+    function clearSignature() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.beginPath();
+    }
+
+    function saveSignature() {
+        // เช็คว่ามีวาดอะไรลงไปไหม (อย่างง่ายคือเช็คว่าไม่ว่างเปล่า)
+        const isBlank = isCanvasBlank();
+        if(isBlank) {
+            showAlert('แจ้งเตือน', 'กรุณาเซ็นชื่อก่อนบันทึก', 'error');
+            return;
+        }
+
+        if(currentSignatureTarget === 'pickup') {
+            taskStatus.pickupSign = true;
+            updateButtonSuccess('btn-sign-pickup', 'text-sign-pickup', 'เซ็นชื่อรับเรียบร้อย');
+            checkPickupCompletion();
+        } else if(currentSignatureTarget === 'delivery') {
+            taskStatus.deliverySign = true;
+            updateButtonSuccess('btn-sign-delivery', 'text-sign-delivery', 'เซ็นชื่อผู้รับเรียบร้อย');
+            checkDeliveryCompletion();
+        }
+
+        closeSignatureModal();
+    }
+
+    // Helper: เช็คว่า Canvas ว่างหรือไม่
+    function isCanvasBlank() {
+        const blank = document.createElement('canvas');
+        blank.width = canvas.width;
+        blank.height = canvas.height;
+        return canvas.toDataURL() === blank.toDataURL();
+    }
+
+    // Custom Alert Box
+    function showAlert(title, message, type='success') {
+        const modal = document.getElementById('custom-alert');
+        const iconDiv = document.getElementById('alert-icon');
+        
+        document.getElementById('alert-title').innerText = title;
+        document.getElementById('alert-message').innerText = message;
+
+        if (type === 'error') {
+            iconDiv.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4';
+            iconDiv.innerHTML = `<svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+        } else {
+            iconDiv.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4';
+            iconDiv.innerHTML = `<svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+        }
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeAlert() {
+        document.getElementById('custom-alert').classList.add('hidden');
+    }
+
+    // เริ่มการทำงาน
+    window.onload = init;
+
+</script>
+</body>
+</html>
